@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, request, render_template, jsonify
 from geopy.geocoders import Nominatim
 import re
@@ -8,6 +7,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager  # 👈 NUEVO
 import threading
 
 app = Flask(__name__)
@@ -79,7 +79,7 @@ def coordenadas_a_direccion():
             resultados.append({"entrada": linea, "error": str(e)})
     return jsonify(resultados)
 
-# Ruta para dirección a coordenadas (optimizando para usar URL directamente)
+# Ruta para dirección a coordenadas (usando webdriver-manager)
 @app.route('/direccion-a-coordenadas', methods=['POST'])
 def direccion_a_coordenadas():
     direcciones = request.json.get('direcciones', [])
@@ -90,14 +90,9 @@ def direccion_a_coordenadas():
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
-    
 
-    chrome_path = "/usr/bin/chromium-browser"
-    chromedriver_path = "/usr/bin/chromedriver"
-
-    service = Service(executable_path=chromedriver_path)
-    chrome_options.binary_location = chrome_path
-
+    # 👇 USAMOS webdriver-manager
+    service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
     for direccion in direcciones:
