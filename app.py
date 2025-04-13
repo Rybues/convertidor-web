@@ -78,7 +78,7 @@ def coordenadas_a_direccion():
             resultados.append({"entrada": linea, "error": str(e)})
     return jsonify(resultados)
 
-# Ruta para dirección a coordenadas (con Selenium)
+# Ruta para dirección a coordenadas (optimizando para usar URL directamente)
 @app.route('/direccion-a-coordenadas', methods=['POST'])
 def direccion_a_coordenadas():
     direcciones = request.json.get('direcciones', [])
@@ -93,18 +93,13 @@ def direccion_a_coordenadas():
 
     for direccion in direcciones:
         try:
-            driver.get("https://www.google.com/maps")
-            time.sleep(1)
-            search_box = driver.find_element(By.ID, "searchboxinput")
-            search_box.clear()
-            search_box.send_keys(direccion)
-            search_box.send_keys(Keys.ENTER)
-            time.sleep(4)
+            driver.get(f"https://www.google.com/maps/place/{direccion}")
+            time.sleep(4)  # Asegúrate de que la página cargue correctamente
             url = driver.current_url
             coordenadas = re.findall(r"3d(-?\d+\.\d+)!4d(-?\d+\.\d+)", url)
             if coordenadas:
                 lat, lon = coordenadas[0]
-                resultados.append({"direccion": direccion, "lat": lat, "lon": lon})
+                resultados.append({"direccion": direccion, "lat": lat, "lon": lon, "url": url})
             else:
                 resultados.append({"direccion": direccion, "error": "No encontrada"})
         except Exception as e:
