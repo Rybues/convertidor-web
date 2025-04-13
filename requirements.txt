@@ -2,3 +2,4 @@ Flask
 geopy
 selenium
 gunicorn
+undetected-chromedriver
