@@ -1,6 +1,3 @@
-Flask
+flask
 geopy
-selenium
-gunicorn
-webdriver-manager
 undetected-chromedriver
