@@ -2,12 +2,7 @@ from flask import Flask, request, render_template, jsonify
 from geopy.geocoders import Nominatim
 import re
 import time
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.common.keys import Keys
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager  # 👈 NUEVO
+import undetected_chromedriver as uc  # ✅ correcto
 import threading
 
 app = Flask(__name__)
@@ -85,20 +80,18 @@ def direccion_a_coordenadas():
     direcciones = request.json.get('direcciones', [])
     resultados = []
 
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
+    options = uc.ChromeOptions()
+    options.headless = True
+    options.add_argument("--no-sandbox")
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-dev-shm-usage")
 
-    # 👇 USAMOS webdriver-manager
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
+    driver = uc.Chrome(options=options)  # 👈 usa UC en lugar de webdriver.Chrome
 
     for direccion in direcciones:
         try:
             driver.get(f"https://www.google.com/maps/place/{direccion}")
-            time.sleep(4)  # Asegúrate de que la página cargue correctamente
+            time.sleep(4)
             url = driver.current_url
             coordenadas = re.findall(r"3d(-?\d+\.\d+)!4d(-?\d+\.\d+)", url)
             if coordenadas:
