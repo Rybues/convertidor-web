@@ -2,4 +2,5 @@ Flask
 geopy
 selenium
 gunicorn
+webdriver-manager
 undetected-chromedriver
