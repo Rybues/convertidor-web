@@ -2,12 +2,12 @@ from flask import Flask, request, render_template, jsonify
 from geopy.geocoders import Nominatim
 import re
 import time
-import undetected_chromedriver as uc
-from selenium.webdriver.chrome.options import Options
+import os
 
-# Configurar opciones de Chrome
-options = Options()
-options.binary_location = "/usr/bin/chromium-browser"  # Ruta del binario de Chromium en Render
+# Solo importa Selenium si se usa localmente
+if os.getenv("LOCAL_MODE") == "1":
+    import undetected_chromedriver as uc
+    from selenium.webdriver.chrome.options import Options
 
 app = Flask(__name__)
 
@@ -78,79 +78,63 @@ def coordenadas_a_direccion():
             resultados.append({"entrada": linea, "error": str(e)})
     return jsonify(resultados)
 
-# Ruta para dirección a coordenadas (opción 2)
+# Ruta para dirección a coordenadas
 @app.route('/direccion-a-coordenadas', methods=['POST'])
 def direccion_a_coordenadas():
     direcciones = request.json.get('direcciones', [])
-    resultados = []
-
-    # Configuración de Chrome
-    options = Options()
-    options.headless = True
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--disable-dev-shm-usage")
-    options.binary_location = "/usr/bin/chromium-browser"
-
-    driver = uc.Chrome(options=options)
     geolocator = Nominatim(user_agent="geoapi_web")
+    resultados = []
 
     for direccion in direcciones:
         try:
-            driver.get(f"https://www.google.com/maps/place/{direccion}")
-            time.sleep(4)
-            url = driver.current_url
-
-            # Primero, intenta extraer desde !3d...!4d...
-            coordenadas = re.findall(r"3d(-?\d+\.\d+)!4d(-?\d+\.\d+)", url)
-            if coordenadas:
-                lat, lon = coordenadas[0]
+            ubicacion = geolocator.geocode(direccion, language='en')
+            if ubicacion:
                 resultados.append({
                     "direccion": direccion,
-                    "lat": lat,
-                    "lon": lon,
-                    "url": url
+                    "lat": round(ubicacion.latitude, 7),
+                    "lon": round(ubicacion.longitude, 7),
+                    "direccion_completa": ubicacion.address,
+                    "maps": f"https://www.google.com/maps?q={ubicacion.latitude},{ubicacion.longitude}"
                 })
-                continue
+            else:
+                # Backup solo si está en modo local
+                if os.getenv("LOCAL_MODE") == "1":
+                    opciones = Options()
+                    opciones.headless = True
+                    opciones.add_argument("--no-sandbox")
+                    opciones.add_argument("--disable-gpu")
+                    opciones.add_argument("--disable-dev-shm-usage")
+                    opciones.binary_location = "/usr/bin/chromium-browser"
+                    driver = uc.Chrome(options=opciones)
 
-            # Si no hay !3d ni !4d, intenta desde @lat,lon
-            match = re.search(r"@(-?\d+\.\d+),(-?\d+\.\d+)", url)
-            if match:
-                lat_url, lon_url = match.groups()
-                try:
-                    ubicacion = geolocator.reverse((lat_url, lon_url), language='en')
-                    if ubicacion:
-                        datos = ubicacion.raw.get('address', {})
-                        if direccion.lower().split()[0] in ubicacion.address.lower():
+                    try:
+                        driver.get(f"https://www.google.com/maps/place/{direccion}")
+                        time.sleep(4)
+                        url = driver.current_url
+
+                        match = re.search(r"@(-?\d+\.\d+),(-?\d+\.\d+)", url)
+                        if match:
+                            lat, lon = match.groups()
                             resultados.append({
                                 "direccion": direccion,
-                                "lat": lat_url,
-                                "lon": lon_url,
+                                "lat": lat,
+                                "lon": lon,
                                 "url": url,
-                                "verificado": True
+                                "verificado_backup": True
                             })
                         else:
-                            resultados.append({
-                                "direccion": direccion,
-                                "lat": lat_url,
-                                "lon": lon_url,
-                                "url": url,
-                                "verificado": False,
-                                "nota": "Coordenadas aproximadas, no exactas del marcador"
-                            })
-                    else:
-                        resultados.append({"direccion": direccion, "error": "Coordenadas obtenidas, pero no se pudo validar con Nominatim"})
-                except Exception as e:
-                    resultados.append({"direccion": direccion, "lat": lat_url, "lon": lon_url, "url": url, "nota": "Error validando con Nominatim", "error": str(e)})
-            else:
-                resultados.append({"direccion": direccion, "error": "No se encontraron coordenadas en la URL"})
-
+                            resultados.append({"direccion": direccion, "error": "No se encontraron coordenadas en la URL (backup)"})
+                    except Exception as e:
+                        resultados.append({"direccion": direccion, "error": f"Error backup: {str(e)}"})
+                    finally:
+                        driver.quit()
+                else:
+                    resultados.append({"direccion": direccion, "error": "No encontrada (sin backup habilitado)"})
+            time.sleep(1)
         except Exception as e:
             resultados.append({"direccion": direccion, "error": str(e)})
 
-    driver.quit()
     return jsonify(resultados)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
