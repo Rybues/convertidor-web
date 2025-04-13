@@ -2,8 +2,12 @@ from flask import Flask, request, render_template, jsonify
 from geopy.geocoders import Nominatim
 import re
 import time
-import undetected_chromedriver as uc  # ✅ correcto
-import threading
+import undetected_chromedriver.v2 as uc  # ✅ correcto
+from selenium.webdriver.chrome.options import Options
+
+# Configurar opciones de Chrome
+options = Options()
+options.binary_location = "/usr/bin/chromium-browser"  # Ruta del binario de Chromium en Render
 
 app = Flask(__name__)
 
@@ -80,13 +84,16 @@ def direccion_a_coordenadas():
     direcciones = request.json.get('direcciones', [])
     resultados = []
 
-    options = uc.ChromeOptions()
+    # Configuración de opciones de Chrome
+    options = Options()
     options.headless = True
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-gpu")
     options.add_argument("--disable-dev-shm-usage")
+    options.binary_location = "/usr/bin/chromium-browser"  # Ruta del binario de Chromium en Render
 
-    driver = uc.Chrome(options=options)  # 👈 usa UC en lugar de webdriver.Chrome
+    # Crear el driver con las opciones configuradas
+    driver = uc.Chrome(options=options)
 
     for direccion in direcciones:
         try:
