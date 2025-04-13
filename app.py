@@ -2,7 +2,7 @@ from flask import Flask, request, render_template, jsonify
 from geopy.geocoders import Nominatim
 import re
 import time
-import undetected_chromedriver.v2 as uc  # ✅ correcto
+import undetected_chromedriver as uc  # ✅ correcto
 from selenium.webdriver.chrome.options import Options
 
 # Configurar opciones de Chrome
